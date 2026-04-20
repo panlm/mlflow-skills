@@ -212,6 +212,10 @@ def main() -> int:
     script_dir = Path(__file__).parent.resolve()
     state.repo_root = script_dir.parent
 
+    # Inject judge definitions as JSON environment variable
+    if config.judge_definitions:
+        config.environment["JUDGE_DEFINITIONS"] = json.dumps(config.judge_definitions)
+
     # Inject user-defined environment variables into the process
     os.environ.update(config.environment)
 

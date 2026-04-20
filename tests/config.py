@@ -38,6 +38,7 @@ class TestConfig:
     tracking_uri: Optional[str] = None
     test_runs_dir: Path = field(default_factory=lambda: Path("/tmp"))
     keep_workdir: bool = True
+    judge_definitions: list[dict] = field(default_factory=list)
     environment: dict[str, str] = field(default_factory=dict)
 
 

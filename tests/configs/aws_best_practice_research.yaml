@@ -1,0 +1,105 @@
+name: "aws-best-practice-research-test"
+project_dir: aws-bp-research
+
+setup_script: tests/scripts/setup_aws_bp_research.py
+judges:
+  - tests/judges/llm_judges.py
+
+skills:
+  - aws-best-practice-research
+
+prompt: "Research AWS ElastiCache Redis best practices and generate a checklist. Do not ask for input. Do not perform live assessment."
+timeout_seconds: 900
+allowed_tools: "Bash,Read,Write,Edit,Grep,Glob,WebFetch,mcp__aws-knowledge-mcp-server__searchDocumentation,mcp__aws-knowledge-mcp-server__getDocumentContent"
+
+mlflow_port: 32941
+tracking_uri: null
+
+test_runs_dir: /tmp
+keep_workdir: true
+
+judge_definitions:
+  # --- Workflow behavior ---
+  - name: skill-invoked
+    question: >
+      Check that the aws-best-practice-research skill was loaded and invoked.
+      The skill is loaded when the agent reads its SKILL.md file from
+      .claude/skills/aws-best-practice-research/.
+      Answer 'yes' only if you see evidence that the skill was loaded.
+
+  - name: sequential-mcp-calls
+    question: >
+      Check that ALL MCP tool calls (search_documentation and read_documentation /
+      getDocumentContent) were executed sequentially — one at a time, never in parallel.
+      The skill explicitly forbids parallel MCP requests due to rate limits.
+      Look at the trace spans: each MCP call should start only after the previous one
+      finished. Answer 'yes' if all were sequential. If you cannot determine the order,
+      answer 'yes' (benefit of the doubt).
+
+  - name: doc-search-coverage
+    question: >
+      Check that the agent executed approximately 5 documentation search queries
+      covering these topics: 1) best practices + HA/DR, 2) Well-Architected reliability,
+      3) replication/failover/backup, 4) security/encryption/auth, 5) Well-Architected security.
+      Answer 'yes' if at least 4 of these 5 topic areas were searched.
+
+  - name: doc-pages-read
+    question: >
+      Check that the agent read key documentation pages after searching, using
+      read_documentation or getDocumentContent tool calls. The agent should have read
+      3-5 pages, prioritizing Well-Architected Lens pages. Answer 'yes' if at least
+      2 documentation pages were read.
+
+  # --- Output quality ---
+  - name: file-naming-convention
+    question: >
+      Check that the output file follows the naming convention:
+      YYYY-mm-dd-HH-MM-SS-{SERVICE}-best-practice-checklist.md
+      (e.g. 2025-07-15-14-30-00-elasticache-redis-best-practice-checklist.md).
+      Look in the trace for the file path used in the Write tool call.
+      Answer 'yes' if the file name matches this pattern.
+
+  - name: five-categories-complete
+    question: >
+      Check that the generated checklist contains ALL 5 mandatory categories:
+      1) High Availability Architecture, 2) Disaster Recovery, 3) Failover Planning,
+      4) Security Configuration, 5) Others.
+      Look in the trace for the file content written by the agent.
+      Answer 'yes' only if all 5 categories are present as section headers.
+
+  - name: item-id-with-priority
+    question: >
+      Check that checklist item IDs embed priority suffixes. IDs should follow
+      the pattern like HA-01-hi, DR-02-md, SEC-03-lo, FP-01-hi, OT-01-md etc.
+      The suffixes -hi (High), -md (Medium), -lo (Low) must be present.
+      Look in the trace for the written file content.
+      Answer 'yes' if you see IDs with -hi, -md, or -lo suffixes.
+
+  - name: source-annotations
+    question: >
+      Check that every checklist item has a source annotation tag such as
+      WA-REL, WA-SEC, WA-PE, WA-OE, WA-CO, Security Hub, re:Post, Official Docs,
+      or AWS Blog. The skill requires "Every check item must have a source annotation."
+      Look in the trace for the written file content.
+      Answer 'yes' if source tags are present on the check items.
+
+  - name: item-count-range
+    question: >
+      Check that the total number of checklist items is between 30 and 50,
+      and each of the 5 categories has at least 3 items.
+      Look in the trace for the written file content and count the check items
+      in each category table.
+      Answer 'yes' if the total is roughly 30-50 and no category has fewer than 3 items.
+      Be lenient — if it's close (e.g. 25 or 55), still answer 'yes'.
+
+  - name: reference-links-and-legend
+    question: >
+      Check that the checklist file includes a "Source Annotations" legend table
+      (explaining abbreviations like WA-REL, WA-SEC etc.) AND a "Key Reference Links"
+      section with documentation URLs.
+      Look in the trace for the written file content.
+      Answer 'yes' if both sections are present.
+
+environment:
+  OPENAI_API_KEY: ""
+  OPENAI_BASE_URL: ""
