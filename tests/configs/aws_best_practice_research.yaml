@@ -10,7 +10,7 @@ skills:
 
 prompt: "Research AWS ElastiCache Redis best practices and generate a checklist. Do not ask for input. Do not perform live assessment."
 timeout_seconds: 900
-allowed_tools: "Bash,Read,Write,Edit,Grep,Glob,WebFetch,mcp__aws-knowledge-mcp-server__searchDocumentation,mcp__aws-knowledge-mcp-server__getDocumentContent"
+allowed_tools: "Bash,Read,Write,Edit,Grep,Glob,WebFetch,mcp__aws-knowledge-mcp-server__aws___search_documentation,mcp__aws-knowledge-mcp-server__aws___read_documentation,mcp__aws-knowledge-mcp-server__aws___recommend"
 
 mlflow_port: 32941
 tracking_uri: null

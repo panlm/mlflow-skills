@@ -217,7 +217,10 @@ def main() -> int:
         config.environment["JUDGE_DEFINITIONS"] = json.dumps(config.judge_definitions)
 
     # Inject user-defined environment variables into the process
-    os.environ.update(config.environment)
+    # Skip empty values so they don't override existing env vars (e.g. from .env)
+    for key, value in config.environment.items():
+        if value:
+            os.environ[key] = value
 
     # Register cleanup handler
     atexit.register(cleanup, config, state)

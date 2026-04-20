@@ -11,7 +11,7 @@ skills:
 # TODO: Replace with a real ElastiCache replication group ID and region
 prompt: "Assess my ElastiCache Redis cluster against best practices. Replication group ID: my-redis-cluster, region: us-east-1. Do not ask for input."
 timeout_seconds: 900
-allowed_tools: "Bash,Read,Write,Edit,Grep,Glob,WebFetch,mcp__aws-knowledge-mcp-server__searchDocumentation,mcp__aws-knowledge-mcp-server__getDocumentContent"
+allowed_tools: "Bash,Read,Write,Edit,Grep,Glob,WebFetch,mcp__aws-knowledge-mcp-server__aws___search_documentation,mcp__aws-knowledge-mcp-server__aws___read_documentation,mcp__aws-knowledge-mcp-server__aws___recommend"
 
 mlflow_port: 32942
 tracking_uri: null
