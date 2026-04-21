@@ -36,6 +36,7 @@ judge_paths = json.loads(os.environ["JUDGE_PATHS"])
 cc_experiment_id = os.environ["CC_EXPERIMENT_ID"]
 eval_experiment_id = os.environ["MLFLOW_EXPERIMENT_ID"]
 run_start_ms = int(os.environ["RUN_START_MS"])
+session_id = os.environ.get("SESSION_ID")
 
 # Load judges from all configured modules
 judges = []
@@ -50,10 +51,11 @@ if not judges:
     print(json.dumps({"error": "No judges returned by get_judges()"}))
     sys.exit(0)
 
-# Get traces created after the main run started.
-# First check the CC tracing experiment, then fall back to the eval experiment
-# (some skills log traces to the eval experiment rather than CC tracing).
-filter_str = f"trace.timestamp_ms > {run_start_ms}"
+# Build filter: timestamp and optional session
+filters = [f"trace.timestamp_ms > {run_start_ms}"]
+if session_id:
+    filters.append(f"metadata.`mlflow.trace.session` = '{session_id}'")
+filter_str = " AND ".join(filters)
 trace_df = mlflow.search_traces(
     experiment_ids=[cc_experiment_id],
     filter_string=filter_str,
