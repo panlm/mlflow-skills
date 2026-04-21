@@ -30,12 +30,43 @@ def _is_databricks_uri(uri: str) -> bool:
     return uri == "databricks" or uri.startswith("databricks://")
 
 
+def _project_base(state: RuntimeState) -> Path:
+    """Base directory for resolving skill-project paths (skills, setup, judges).
+
+    Returns project_root when set (external skill repo), otherwise repo_root.
+    """
+    return state.project_root or state.repo_root
+
+
+def resolve_judge_paths(config: TestConfig, state: RuntimeState) -> list[str]:
+    """Resolve judge module file paths.
+
+    - If ``judges`` is listed in the YAML config, resolve each entry relative
+      to the project base directory.
+    - If ``judges`` is empty but ``judge_definitions`` exist, automatically use
+      the framework's built-in ``llm_judges.py``.
+    """
+    if config.judges:
+        base = _project_base(state)
+        return [str(base / j) for j in config.judges]
+
+    if config.judge_definitions:
+        builtin = state.repo_root / "tests" / "judges" / "llm_judges.py"
+        return [str(builtin)]
+
+    return []
+
+
 def check_prerequisites(config: TestConfig, state: RuntimeState) -> bool:
     log_section("Checking Prerequisites")
 
+    project_base = _project_base(state)
+    if project_base != state.repo_root:
+        log.info(f"Using external project root: {project_base}")
+
     # Check skill directories exist
     for skill_name in config.skills:
-        skill_dir = state.repo_root / skill_name
+        skill_dir = project_base / skill_name
         if not skill_dir.exists():
             log.error(f"Skill directory not found: {skill_dir}")
             return False
@@ -44,20 +75,24 @@ def check_prerequisites(config: TestConfig, state: RuntimeState) -> bool:
             return False
         log.info(f"Skill directory found: {skill_dir}")
 
-    # Check setup script exists
-    setup_script = state.repo_root / config.setup_script
-    if not setup_script.exists():
-        log.error(f"Setup script not found: {setup_script}")
-        return False
-    log.info(f"Setup script found: {setup_script}")
+    # Check setup script exists (optional — if omitted, project dir is just mkdir'd)
+    if config.setup_script:
+        setup_script = project_base / config.setup_script
+        if not setup_script.exists():
+            log.error(f"Setup script not found: {setup_script}")
+            return False
+        log.info(f"Setup script found: {setup_script}")
 
     # Check judges modules exist
-    for judge_path in config.judges:
-        judges_module = state.repo_root / judge_path
-        if not judges_module.exists():
-            log.error(f"Judges module not found: {judges_module}")
+    judge_paths = resolve_judge_paths(config, state)
+    if not judge_paths and not config.judge_definitions:
+        log.error("No judges or judge_definitions configured")
+        return False
+    for p in judge_paths:
+        if not Path(p).exists():
+            log.error(f"Judges module not found: {p}")
             return False
-        log.info(f"Judges module found: {judges_module}")
+        log.info(f"Judges module found: {p}")
 
     # Check external server or port availability
     if config.tracking_uri:
@@ -245,7 +280,12 @@ def setup_infrastructure(config: TestConfig, state: RuntimeState) -> bool:
 def run_setup_script(config: TestConfig, state: RuntimeState) -> bool:
     log_section("Running Setup Script")
 
-    setup_script = state.repo_root / config.setup_script
+    if not config.setup_script:
+        log.info("No setup script configured, ensuring project directory exists")
+        state.full_project_dir.mkdir(parents=True, exist_ok=True)
+        return True
+
+    setup_script = _project_base(state) / config.setup_script
     log.info(f"Executing: {setup_script}")
 
     env = {
@@ -288,11 +328,13 @@ def install_skills(config: TestConfig, state: RuntimeState) -> bool:
     skills_dir = state.full_project_dir / ".claude" / "skills"
     skills_dir.mkdir(parents=True, exist_ok=True)
 
+    project_base = _project_base(state)
+
     for skill_name in config.skills:
-        src = state.repo_root / skill_name
+        src = project_base / skill_name
         dst = skills_dir / skill_name
         shutil.copytree(src, dst)
-        log.info(f"Installed skill: {skill_name} -> {dst}")
+        log.info(f"Installed skill: {skill_name} ({src} -> {dst})")
 
     return True
 

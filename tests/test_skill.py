@@ -39,6 +39,7 @@ from config import (
     EXIT_EXECUTION_FAILED,
     EXIT_VERIFICATION_FAILED,
     load_config,
+    filter_judges_by_scope,
 )
 from utils import log, log_section, run_command, claude_env
 from infra import (
@@ -49,6 +50,7 @@ from infra import (
     setup_claude_code_tracing,
     test_claude_headless,
     cleanup,
+    resolve_judge_paths,
 )
 
 
@@ -115,7 +117,7 @@ def verify_judges(config: TestConfig, state: RuntimeState) -> bool:
     log.info("Waiting for traces to flush...")
     time.sleep(10)
 
-    judge_paths = [str(state.repo_root / j) for j in config.judges]
+    judge_paths = resolve_judge_paths(config, state)
     for p in judge_paths:
         log.info(f"Loading judges from: {p}")
 
@@ -199,18 +201,37 @@ def main() -> int:
 
     config = load_config(yaml_path)
 
-    # Apply CLI environment variable overrides
+    # Apply CLI overrides — config fields or environment variables
     for arg in sys.argv[2:]:
         if "=" not in arg:
             print(f"Invalid override (expected KEY=VALUE): {arg}", file=sys.stderr)
             return EXIT_SETUP_FAILED
         key, _, value = arg.partition("=")
-        config.environment[key] = value
+        if hasattr(config, key):
+            current = getattr(config, key)
+            if isinstance(current, int):
+                setattr(config, key, int(value))
+            elif isinstance(current, bool):
+                setattr(config, key, value.lower() in ("true", "1", "yes"))
+            elif isinstance(current, Path):
+                setattr(config, key, Path(value))
+            else:
+                setattr(config, key, value)
+        else:
+            config.environment[key] = value
     state = RuntimeState()
+
+    # Filter judge definitions by test_scope (after CLI overrides are applied)
+    filter_judges_by_scope(config)
 
     # Determine repo root (parent of tests/ directory)
     script_dir = Path(__file__).parent.resolve()
     state.repo_root = script_dir.parent
+
+    # Resolve project_root relative to the YAML file's directory
+    if config.project_root:
+        yaml_dir = Path(yaml_path).parent.resolve()
+        state.project_root = (yaml_dir / config.project_root).resolve()
 
     # Inject judge definitions as JSON environment variable
     if config.judge_definitions:

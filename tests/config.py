@@ -27,10 +27,11 @@ log = logging.getLogger(__name__)
 class TestConfig:
     name: str
     project_dir: str
-    setup_script: str
-    judges: list[str]
     skills: list[str]
     prompt: str
+    setup_script: Optional[str] = None
+    judges: list[str] = field(default_factory=list)
+    project_root: Optional[str] = None
     timeout_seconds: int = 900
     verification_timeout: int = 300
     allowed_tools: str = "Bash,Read,Write,Edit,Grep,Glob,WebFetch"
@@ -39,6 +40,7 @@ class TestConfig:
     test_runs_dir: Path = field(default_factory=lambda: Path("/tmp"))
     keep_workdir: bool = True
     judge_definitions: list[dict] = field(default_factory=list)
+    test_scope: str = "all"
     environment: dict[str, str] = field(default_factory=dict)
 
 
@@ -52,6 +54,7 @@ class RuntimeState:
     use_external_server: bool = False
     cc_tracing_experiment_id: Optional[str] = None
     repo_root: Optional[Path] = None
+    project_root: Optional[Path] = None
     run_start_timestamp_ms: Optional[int] = None
 
 
@@ -72,3 +75,14 @@ def load_config(yaml_path: str) -> TestConfig:
         data["environment"] = {k: str(v) for k, v in env.items()}
 
     return TestConfig(**data)
+
+
+def filter_judges_by_scope(config: TestConfig) -> None:
+    """Remove judge definitions whose scope does not match test_scope."""
+    if not config.judge_definitions:
+        return
+    scope = config.test_scope
+    config.judge_definitions = [
+        j for j in config.judge_definitions
+        if j.get("scope", "all") in ("all", scope)
+    ]

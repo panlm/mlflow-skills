@@ -42,7 +42,7 @@ def _call_llm(client, question, trace_excerpt):
 def _extract_trace(trace):
     trace_json = trace.to_json() if hasattr(trace, "to_json") else json.dumps(trace.to_dict())
     head = trace_json[:120000]
-    tail = trace_json[-40000:] if len(trace_json) > 160000 else ""
+    tail = trace_json[-80000:] if len(trace_json) > 200000 else ""
     return head + ("\n...[TRUNCATED]...\n" + tail if tail else "")
 
 
