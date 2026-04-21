@@ -212,3 +212,4 @@ __marimo__/
 mlflow.db
 mlruns/
 mlflow-artifacts/
+nohup.out
