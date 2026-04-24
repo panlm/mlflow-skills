@@ -516,15 +516,12 @@ def _finalize_trace(
                 TraceMetadataKey.TRACE_USER: os.environ.get("USER", ""),
                 "mlflow.trace.working_directory": os.getcwd(),
             }
-            if session_id:
-                if agent_id:
+            if agent_id:
+                metadata[TraceMetadataKey.TRACE_SESSION] = agent_id
+                if session_id:
                     metadata[METADATA_KEY_PARENT_SESSION] = session_id
-                    agent_label = agent_type or "agent"
-                    metadata[TraceMetadataKey.TRACE_SESSION] = (
-                        f"{session_id}::subagent-{agent_label}-{agent_id[:8]}"
-                    )
-                else:
-                    metadata[TraceMetadataKey.TRACE_SESSION] = session_id
+            elif session_id:
+                metadata[TraceMetadataKey.TRACE_SESSION] = session_id
             if claude_code_version:
                 metadata[METADATA_KEY_CLAUDE_CODE_VERSION] = claude_code_version
             if agent_id:
